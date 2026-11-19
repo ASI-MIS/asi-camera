@@ -1,62 +1,210 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ASI Gate Pass — Webcam</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASI Face Camera</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:system-ui,Segoe UI,sans-serif;background:linear-gradient(135deg,#eef6ff,#f6f2ff);color:#1e2440;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
-.box{width:100%;max-width:520px;background:rgba(255,255,255,.75);backdrop-filter:blur(16px);border:1px solid rgba(0,0,0,.08);border-radius:22px;padding:18px;box-shadow:0 12px 40px rgba(0,0,0,.08)}
-h1{font-size:17px;margin-bottom:12px}
-.cam{position:relative;border-radius:16px;overflow:hidden;background:#000;aspect-ratio:4/3;border:2px solid #0ea5e9}
-video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
-.flash{position:absolute;inset:0;background:#fff;opacity:0;transition:opacity .15s}
-#msg{text-align:center;font-weight:600;margin:12px 0;min-height:22px}
-button{width:100%;padding:14px;border:0;border-radius:14px;font-size:16px;font-weight:700;color:#fff;cursor:pointer;background:linear-gradient(135deg,#0ea5e9,#6366f1);box-shadow:0 6px 20px rgba(14,165,233,.4)}
-button:disabled{opacity:.5}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:linear-gradient(160deg,#05081a,#0a0f2b 55%,#0f1740);
+  color:#eaf1ff;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:18px;}
+.wrap{width:100%;max-width:430px;text-align:center;}
+.brand{font-family:'Sora';font-size:11px;letter-spacing:4px;text-transform:uppercase;color:#38bdf8;font-weight:800;margin-bottom:6px;}
+h1{font-family:'Sora';font-size:21px;font-weight:800;margin-bottom:16px;letter-spacing:.4px;}
+.stage{position:relative;width:100%;aspect-ratio:1/1;border-radius:24px;overflow:hidden;
+  background:#070b1f;border:1px solid rgba(255,255,255,.1);box-shadow:0 30px 70px -28px rgba(0,0,0,.9);}
+video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block;}
+.ring{position:absolute;inset:11%;border-radius:50%;border:3px dashed rgba(56,189,248,.5);pointer-events:none;transition:.3s;}
+.ring.good{border-style:solid;border-color:#34d399;box-shadow:0 0 34px rgba(52,211,153,.6),inset 0 0 34px rgba(52,211,153,.22);}
+.ring.bad{border-color:rgba(251,113,133,.6);}
+.shot{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;}
+.shot.on{animation:flash .45s ease;}
+@keyframes flash{0%{opacity:.85}100%{opacity:0}}
+.dots{display:flex;gap:9px;justify-content:center;margin:15px 0 4px;}
+.dot{width:38px;height:6px;border-radius:4px;background:rgba(255,255,255,.14);transition:.3s;}
+.dot.on{background:linear-gradient(90deg,#34d399,#22d3ee);box-shadow:0 0 14px rgba(52,211,153,.8);}
+.msg{margin-top:14px;font-size:14.5px;font-weight:700;line-height:1.6;min-height:46px;color:#cfe0ff;}
+.msg b{color:#7dd3fc;}
+.msg.err{color:#fda4af;}
+.msg.ok{color:#6ee7b7;}
+.bar{height:6px;border-radius:4px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:12px;display:none;}
+.bar.on{display:block;}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#38bdf8,#6366f1);transition:width .3s;}
+button{width:100%;margin-top:16px;padding:15px;border:none;border-radius:14px;cursor:pointer;
+  font-family:'Sora';font-weight:800;font-size:14px;letter-spacing:1.2px;text-transform:uppercase;
+  background:linear-gradient(135deg,#38bdf8,#3b82f6 45%,#6366f1);color:#fff;
+  box-shadow:0 16px 36px -14px rgba(59,130,246,.9);transition:.2s;}
+button:hover:not(:disabled){transform:translateY(-2px);filter:brightness(1.07);}
+button:disabled{opacity:.45;cursor:not-allowed;transform:none;}
+button.ghost{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);
+  box-shadow:none;color:#93a0ce;margin-top:9px;}
+.note{margin-top:13px;font-size:11px;color:#6b78a8;line-height:1.6;}
 </style>
 </head>
 <body>
-<div class="box">
-  <h1 id="title">📷 ASI Gate Pass — Webcam</h1>
-  <div class="cam"><video id="v" autoplay muted playsinline></video><div class="flash" id="fl"></div></div>
-  <div id="msg">Camera start ho raha hai...</div>
-  <button id="btn" disabled>📸 Capture</button>
+
+<div class="wrap">
+  <div class="brand">Anand Sports Industries</div>
+  <h1 id="ttl">😊 Face Login</h1>
+
+  <div class="stage">
+    <video id="vid" autoplay muted playsinline></video>
+    <div class="ring" id="ring"></div>
+    <div class="shot" id="shot"></div>
+  </div>
+
+  <div class="dots" id="dots"></div>
+  <div class="bar" id="bar"><i id="barFill"></i></div>
+  <div class="msg" id="msg">Camera shuru ho raha hai…</div>
+
+  <button id="btn" disabled>⏳ Loading…</button>
+  <button class="ghost" onclick="bail('user_cancel')">✕ Cancel</button>
+
+  <div class="note">Face saaf roshni me rakho · chashma utar lo to behtar<br>Photo kahin save nahi hoti — sirf face ka number code jata hai</div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js"></script>
 <script>
-const mode = new URLSearchParams(location.search).get('mode') || 'scan';
-const N = mode === 'register' ? 3 : 1;           // register = 3 photo, scan = 1 photo
-const $ = id => document.getElementById(id);
-$('title').textContent = mode === 'register' ? '📸 Face Register — Webcam' : '📷 Face Scan — Webcam';
+/* =======================================================================
+   ASI FACE CAMERA  —  SAMAIRA CRM ke liye
+   URL: camera.html?mode=enroll   (3 sample lega — face register karne ke liye)
+        camera.html?mode=verify   (1 sample lega — login ke liye)
+   Wapas bhejta hai (postMessage -> window.opener):
+     { source:'ASI_FACE_CAM', v:1, ok:true, mode:'enroll'|'verify',
+       descriptors:[[128 numbers], ...] }
+     ya  { source:'ASI_FACE_CAM', v:1, ok:false, error:'...' }
+   ======================================================================= */
 
-if (!window.opener) $('msg').textContent = '⚠️ Ye page Gate Pass app ke button se hi kholo';
+const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
+const MODE      = (new URLSearchParams(location.search).get('mode') || 'verify').toLowerCase();
+const NEED      = (MODE === 'enroll') ? 3 : 1;     // kitne sample lene hain
 
-navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 } }, audio: false })
-  .then(s => { $('v').srcObject = s; $('btn').disabled = !window.opener;
-               if (window.opener) $('msg').textContent = '👀 Camera ki taraf seedha dekho, phir Capture dabao'; })
-  .catch(e => { $('msg').textContent = '❌ Camera nahi khula: ' + (e.name === 'NotReadableError' ? 'kisi aur app (Zoom/Meet) ne camera pakda hai' : e.name === 'NotAllowedError' ? 'permission Allow karo (address bar 🔒)' : e.message); });
+const vid=document.getElementById('vid'), ring=document.getElementById('ring');
+const msg=document.getElementById('msg'), btn=document.getElementById('btn');
+const dots=document.getElementById('dots'), bar=document.getElementById('bar'), barFill=document.getElementById('barFill');
+const shot=document.getElementById('shot');
 
-function frame(){
-  const v = $('v'), c = document.createElement('canvas');
-  c.width = v.videoWidth; c.height = v.videoHeight;
-  c.getContext('2d').drawImage(v, 0, 0);
-  $('fl').style.opacity = .8; setTimeout(() => $('fl').style.opacity = 0, 120);
-  return c.toDataURL('image/jpeg', 0.85);
+let stream=null, ready=false, busy=false, sent=false;
+const got=[];
+
+document.getElementById('ttl').innerText = (MODE==='enroll') ? '🙂 Face Register Karo' : '😊 Face Login';
+
+// progress dots
+for(let i=0;i<NEED;i++){ const d=document.createElement('div'); d.className='dot'; dots.appendChild(d); }
+function paintDots(){ [...dots.children].forEach((d,i)=>d.classList.toggle('on', i<got.length)); }
+
+function say(t,cls){ msg.className='msg'+(cls?' '+cls:''); msg.innerHTML=t; }
+
+function send(payload){
+  if(sent)return; sent=true;
+  const data=Object.assign({source:'ASI_FACE_CAM', v:1, mode:MODE}, payload);
+  try{ if(window.opener) window.opener.postMessage(data,'*'); }catch(e){}
+  try{ if(window.parent && window.parent!==window) window.parent.postMessage(data,'*'); }catch(e){}
+  stopCam();
+  setTimeout(function(){ try{ window.close(); }catch(e){} },700);
 }
-$('btn').onclick = async () => {
-  $('btn').disabled = true;
-  const frames = [];
-  for (let i = 0; i < N; i++) {
-    $('msg').textContent = '📸 Photo ' + (i + 1) + ' / ' + N + (N > 1 ? ' — thoda sa sir ghumao' : '');
-    frames.push(frame());
-    if (i < N - 1) await new Promise(r => setTimeout(r, 700));
+function bail(reason){ send({ok:false, error:reason||'cancelled'}); }
+function stopCam(){ try{ if(stream) stream.getTracks().forEach(t=>t.stop()); }catch(e){} }
+
+// ---------- models + camera ----------
+(async function init(){
+  try{
+    say('Face model load ho raha hai… <b>pehli baar thoda time lagega</b>');
+    bar.classList.add('on'); barFill.style.width='15%';
+
+    await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);      barFill.style.width='40%';
+    await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);     barFill.style.width='60%';
+    await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);    barFill.style.width='100%';
+    setTimeout(()=>bar.classList.remove('on'),400);
+
+    say('Camera on kar rahe hain…');
+    stream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode:'user', width:{ideal:640}, height:{ideal:640} }, audio:false
+    });
+    vid.srcObject = stream;
+    await vid.play();
+
+    ready=true;
+    btn.disabled=false;
+    btn.innerText = (MODE==='enroll') ? '📸 Capture (1/'+NEED+')' : '📸 Face Scan Karo';
+    say((MODE==='enroll')
+      ? 'Face ko circle ke andar rakho aur <b>'+NEED+' baar</b> capture karo'
+      : 'Face ko circle ke andar rakho, phir <b>Face Scan</b> dabao');
+    watch();
+
+  }catch(err){
+    bar.classList.remove('on');
+    const m=String(err&&err.name||err);
+    if(m.indexOf('NotAllowed')>=0 || m.indexOf('Permission')>=0){
+      say('❌ Camera ki permission nahi mili.<br>Browser me camera <b>Allow</b> karo aur page refresh karo.','err');
+    }else if(m.indexOf('NotFound')>=0){
+      say('❌ Is device par camera nahi mila.','err');
+    }else{
+      say('❌ '+m,'err');
+    }
+    btn.innerText='↻ Dobara Try Karo';
+    btn.disabled=false;
+    btn.onclick=()=>location.reload();
   }
-  window.opener.postMessage({ type: 'ASI_FACE_FRAMES', frames: frames }, '*');
-  $('msg').textContent = '✅ Bhej diya — window band ho rahi hai';
-  $('v').srcObject.getTracks().forEach(t => t.stop());
-  setTimeout(() => window.close(), 600);
+})();
+
+// ---------- live face guide ----------
+const OPT = new faceapi.TinyFaceDetectorOptions({ inputSize:320, scoreThreshold:0.45 });
+let lastFace=false;
+async function watch(){
+  if(!ready || sent) return;
+  if(!busy){
+    try{
+      const d = await faceapi.detectSingleFace(vid, OPT);
+      lastFace = !!d;
+      ring.className = 'ring ' + (d ? 'good' : 'bad');
+    }catch(e){}
+  }
+  setTimeout(watch, 420);
+}
+
+// ---------- capture ----------
+btn.onclick = async function(){
+  if(!ready || busy || sent) return;
+  busy=true; btn.disabled=true;
+  const old=btn.innerText; btn.innerText='⏳ Scan ho raha hai…';
+  say('Hilna mat… face padha ja raha hai');
+
+  try{
+    const res = await faceapi
+      .detectSingleFace(vid, OPT)
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+
+    if(!res){
+      say('⚠ Face nahi mila — roshni me aao aur camera ke saamne seedha dekho','err');
+      busy=false; btn.disabled=false; btn.innerText=old; return;
+    }
+
+    shot.classList.remove('on'); void shot.offsetWidth; shot.classList.add('on');
+    got.push(Array.from(res.descriptor).map(n=>Math.round(n*100000)/100000));
+    paintDots();
+
+    if(got.length < NEED){
+      say('✔ <b>'+got.length+'/'+NEED+'</b> ho gaya — thoda angle badlo aur phir capture karo','ok');
+      btn.innerText='📸 Capture ('+(got.length+1)+'/'+NEED+')';
+      busy=false; btn.disabled=false;
+      return;
+    }
+
+    say('✅ Ho gaya! Window apne aap band ho rahi hai…','ok');
+    btn.innerText='✅ Done';
+    send({ok:true, descriptors:got});
+
+  }catch(err){
+    say('❌ '+String(err&&err.message||err),'err');
+    busy=false; btn.disabled=false; btn.innerText=old;
+  }
 };
+
+// window band karo to parent ko pata chale
+window.addEventListener('beforeunload', function(){ if(!sent) bail('window_closed'); });
 </script>
 </body>
 </html>
