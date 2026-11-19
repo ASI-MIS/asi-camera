@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ASI Gate Pass — Webcam</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,Segoe UI,sans-serif;background:linear-gradient(135deg,#eef6ff,#f6f2ff);color:#1e2440;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+.box{width:100%;max-width:520px;background:rgba(255,255,255,.75);backdrop-filter:blur(16px);border:1px solid rgba(0,0,0,.08);border-radius:22px;padding:18px;box-shadow:0 12px 40px rgba(0,0,0,.08)}
+h1{font-size:17px;margin-bottom:12px}
+.cam{position:relative;border-radius:16px;overflow:hidden;background:#000;aspect-ratio:4/3;border:2px solid #0ea5e9}
+video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;transition:opacity .15s}
+#msg{text-align:center;font-weight:600;margin:12px 0;min-height:22px}
+button{width:100%;padding:14px;border:0;border-radius:14px;font-size:16px;font-weight:700;color:#fff;cursor:pointer;background:linear-gradient(135deg,#0ea5e9,#6366f1);box-shadow:0 6px 20px rgba(14,165,233,.4)}
+button:disabled{opacity:.5}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1 id="title">📷 ASI Gate Pass — Webcam</h1>
+  <div class="cam"><video id="v" autoplay muted playsinline></video><div class="flash" id="fl"></div></div>
+  <div id="msg">Camera start ho raha hai...</div>
+  <button id="btn" disabled>📸 Capture</button>
+</div>
+<script>
+const mode = new URLSearchParams(location.search).get('mode') || 'scan';
+const N = mode === 'register' ? 3 : 1;           // register = 3 photo, scan = 1 photo
+const $ = id => document.getElementById(id);
+$('title').textContent = mode === 'register' ? '📸 Face Register — Webcam' : '📷 Face Scan — Webcam';
+
+if (!window.opener) $('msg').textContent = '⚠️ Ye page Gate Pass app ke button se hi kholo';
+
+navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 } }, audio: false })
+  .then(s => { $('v').srcObject = s; $('btn').disabled = !window.opener;
+               if (window.opener) $('msg').textContent = '👀 Camera ki taraf seedha dekho, phir Capture dabao'; })
+  .catch(e => { $('msg').textContent = '❌ Camera nahi khula: ' + (e.name === 'NotReadableError' ? 'kisi aur app (Zoom/Meet) ne camera pakda hai' : e.name === 'NotAllowedError' ? 'permission Allow karo (address bar 🔒)' : e.message); });
+
+function frame(){
+  const v = $('v'), c = document.createElement('canvas');
+  c.width = v.videoWidth; c.height = v.videoHeight;
+  c.getContext('2d').drawImage(v, 0, 0);
+  $('fl').style.opacity = .8; setTimeout(() => $('fl').style.opacity = 0, 120);
+  return c.toDataURL('image/jpeg', 0.85);
+}
+$('btn').onclick = async () => {
+  $('btn').disabled = true;
+  const frames = [];
+  for (let i = 0; i < N; i++) {
+    $('msg').textContent = '📸 Photo ' + (i + 1) + ' / ' + N + (N > 1 ? ' — thoda sa sir ghumao' : '');
+    frames.push(frame());
+    if (i < N - 1) await new Promise(r => setTimeout(r, 700));
+  }
+  window.opener.postMessage({ type: 'ASI_FACE_FRAMES', frames: frames }, '*');
+  $('msg').textContent = '✅ Bhej diya — window band ho rahi hai';
+  $('v').srcObject.getTracks().forEach(t => t.stop());
+  setTimeout(() => window.close(), 600);
+};
+</script>
+</body>
+</html>
