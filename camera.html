@@ -61,7 +61,7 @@ button.ghost{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,
   <button id="btn" disabled>⏳ Loading…</button>
   <button class="ghost" onclick="bail('user_cancel')">✕ Cancel</button>
 
-  <div class="note">Face saaf roshni me rakho · chashma utar lo to behtar<br>Photo kahin save nahi hoti — sirf face ka number code jata hai</div>
+  <div class="note" id="note">Face saaf roshni me rakho · chashma utar lo to behtar<br>Photo kahin save nahi hoti — sirf face ka number code jata hai</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js"></script>
@@ -79,6 +79,11 @@ button.ghost{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,
 const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
 const MODE      = (new URLSearchParams(location.search).get('mode') || 'verify').toLowerCase();
 const NEED      = (MODE === 'enroll') ? 3 : 1;     // kitne sample lene hain
+// LOGIN (verify) me face aate hi apne aap scan — band karna ho to URL me &auto=0
+const AUTO      = (MODE === 'verify') &&
+                  ((new URLSearchParams(location.search).get('auto') || '1') !== '0');
+const AUTO_HOLD = 3;    // itne frame tak face tikna chahiye (~1.2 sec) tab scan
+const MIN_FACE  = 0.17; // face itna bada ho (video ki chaudai ka hissa) — door se scan na ho
 
 const vid=document.getElementById('vid'), ring=document.getElementById('ring');
 const msg=document.getElementById('msg'), btn=document.getElementById('btn');
@@ -89,6 +94,11 @@ let stream=null, ready=false, busy=false, sent=false;
 const got=[];
 
 document.getElementById('ttl').innerText = (MODE==='enroll') ? '🙂 Face Register Karo' : '😊 Face Login';
+if(AUTO){
+  const nt=document.getElementById('note');
+  if(nt)nt.innerHTML='⚡ <b style="color:#6ee7b7">Auto scan ON</b> — button dabane ki zaroorat nahi, bas face dikhao'
+    +'<br>Face saaf roshni me rakho · Photo kahin save nahi hoti, sirf number code jata hai';
+}
 
 // progress dots
 for(let i=0;i<NEED;i++){ const d=document.createElement('div'); d.className='dot'; dots.appendChild(d); }
@@ -127,10 +137,12 @@ function stopCam(){ try{ if(stream) stream.getTracks().forEach(t=>t.stop()); }ca
 
     ready=true;
     btn.disabled=false;
-    btn.innerText = (MODE==='enroll') ? '📸 Capture (1/'+NEED+')' : '📸 Face Scan Karo';
+    btn.innerText = (MODE==='enroll') ? '📸 Capture (1/'+NEED+')'
+                  : (AUTO ? '📸 Manual Scan' : '📸 Face Scan Karo');
     say((MODE==='enroll')
       ? 'Face ko circle ke andar rakho aur <b>'+NEED+' baar</b> capture karo'
-      : 'Face ko circle ke andar rakho, phir <b>Face Scan</b> dabao');
+      : (AUTO ? 'Face ko circle ke andar laao — <b>apne aap scan</b> ho jayega'
+              : 'Face ko circle ke andar rakho, phir <b>Face Scan</b> dabao'));
     watch();
 
   }catch(err){
@@ -151,24 +163,49 @@ function stopCam(){ try{ if(stream) stream.getTracks().forEach(t=>t.stop()); }ca
 
 // ---------- live face guide ----------
 const OPT = new faceapi.TinyFaceDetectorOptions({ inputSize:320, scoreThreshold:0.45 });
-let lastFace=false;
+let streak=0;
+
 async function watch(){
   if(!ready || sent) return;
   if(!busy){
     try{
       const d = await faceapi.detectSingleFace(vid, OPT);
-      lastFace = !!d;
-      ring.className = 'ring ' + (d ? 'good' : 'bad');
+      const vw = vid.videoWidth || 640;
+      const big = d ? ((d.box.width / vw) >= MIN_FACE) : false;
+      ring.className = 'ring ' + (d ? (big ? 'good' : 'bad') : 'bad');
+
+      if(AUTO){
+        if(d && big){
+          streak++;
+          const left = AUTO_HOLD - streak;
+          if(left > 0){
+            say('🙂 Face mil gaya — hilna mat… <b>' + left + '</b>', 'ok');
+            btn.innerText = 'Scan ho raha hai… ' + left;
+          }else{
+            streak = 0;
+            doCapture();          // apne aap scan
+            return;
+          }
+        }else{
+          if(streak > 0){ streak = 0; btn.innerText = '📸 Manual Scan'; }
+          say(d ? 'Thoda paas aao — face bada dikhna chahiye'
+                : 'Face ko circle ke andar laao — <b>apne aap scan</b> ho jayega');
+        }
+      }
     }catch(e){}
   }
   setTimeout(watch, 420);
 }
 
 // ---------- capture ----------
-btn.onclick = async function(){
+btn.onclick = function(){ doCapture(); };
+
+async function doCapture(){
   if(!ready || busy || sent) return;
   busy=true; btn.disabled=true;
-  const old=btn.innerText; btn.innerText='⏳ Scan ho raha hai…';
+  const old=(MODE==='enroll') ? ('📸 Capture ('+(got.length+1)+'/'+NEED+')')
+                              : (AUTO ? '📸 Manual Scan' : '📸 Face Scan Karo');
+  btn.innerText='⏳ Scan ho raha hai…';
   say('Hilna mat… face padha ja raha hai');
 
   try{
@@ -179,7 +216,9 @@ btn.onclick = async function(){
 
     if(!res){
       say('⚠ Face nahi mila — roshni me aao aur camera ke saamne seedha dekho','err');
-      busy=false; btn.disabled=false; btn.innerText=old; return;
+      busy=false; btn.disabled=false; btn.innerText=old;
+      streak=0;            // auto mode me dobara apne aap koshish karega
+      return;
     }
 
     shot.classList.remove('on'); void shot.offsetWidth; shot.classList.add('on');
@@ -201,7 +240,7 @@ btn.onclick = async function(){
     say('❌ '+String(err&&err.message||err),'err');
     busy=false; btn.disabled=false; btn.innerText=old;
   }
-};
+}
 
 // window band karo to parent ko pata chale
 window.addEventListener('beforeunload', function(){ if(!sent) bail('window_closed'); });
